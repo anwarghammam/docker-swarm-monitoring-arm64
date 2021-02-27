@@ -1,0 +1,127 @@
+version: "3.3"
+
+networks:
+  net:
+    driver: overlay
+    attachable: true
+
+volumes:
+    prometheus: {}
+    grafana: {}
+    alertmanager: {}
+
+configs:
+  dockerd_config:
+    file: ./dockerd-exporter/Caddyfile
+  node_rules:
+    file: ./prometheus/rules/swarm_node.rules.yml
+  task_rules:
+    file: ./prometheus/rules/swarm_task.rules.yml
+
+services:
+
+  cadvisor:
+    image: carlosedp/rpi-cadvisor
+    networks:
+      - net
+    restart: unless-stopped
+    ports:
+      - 8082:8080
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    deploy:
+      mode: global
+    command:
+      - --global_housekeeping_interval=30s
+      - --housekeeping_interval=5s
+      - --storage_duration=1m0s
+
+  grafana:
+    image: anwargh/grafana
+    ports:
+         -  "3000:3000"
+    networks:
+      - net
+    environment:
+      - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      #- GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-localhost}
+      #- GF_SMTP_ENABLED=${GF_SMTP_ENABLED:-false}
+      #- GF_SMTP_FROM_ADDRESS=${GF_SMTP_FROM_ADDRESS:-grafana@test.com}
+      #- GF_SMTP_FROM_NAME=${GF_SMTP_FROM_NAME:-Grafana}
+      #- GF_SMTP_HOST=${GF_SMTP_HOST:-smtp:25}
+      #- GF_SMTP_USER=${GF_SMTP_USER}
+      #- GF_SMTP_PASSWORD=${GF_SMTP_PASSWORD}
+    volumes:
+      - grafana:/var/lib/grafana
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  node-exporter:
+    image: anwargh/node-exporter
+    networks:
+      - net
+    environment:
+      - NODE_ID={{.Node.ID}}
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /etc/hostname:/etc/nodename
+    command:
+      - '--path.sysfs=/host/sys'
+      - '--path.procfs=/host/proc'
+      - '--collector.textfile.directory=/etc/node-exporter/'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--no-collector.ipvs'
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  prometheus:
+    image: anwargh/prometheus
+    ports:
+         -  "9090:9090"
+    networks:
+      - net
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=${PROMETHEUS_RETENTION:-24h}'
+    volumes:
+      - prometheus:/prometheus
+    configs:
+      - source: node_rules
+        target: /etc/prometheus/swarm_node.rules.yml
+      - source: task_rules
+        target: /etc/prometheus/swarm_task.rules.yml
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 128M
+
+ 
