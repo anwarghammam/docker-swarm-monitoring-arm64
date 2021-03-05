@@ -1,34 +1,19 @@
 # arm64-docker-swarm-monitoring
 # swarmprom
 
-Swarmprom is a starter kit for Docker Swarm monitoring with [Prometheus](https://prometheus.io/),
-[Grafana](http://grafana.org/),
-[cAdvisor](https://github.com/google/cadvisor),
-[Node Exporter](https://github.com/prometheus/node_exporter),
-[Alert Manager](https://github.com/prometheus/alertmanager)
-and [Unsee](https://github.com/cloudflare/unsee).
+[
 
 ## Install
 
 Clone this repository and run the monitoring stack:
 
 ```bash
-$ git clone https://github.com/stefanprodan/swarmprom.git
-$ cd swarmprom
+$ git clone https://github.com/anwarghammam/docker-swarm-monitoring-arm64
+$ cd docker-swarm-monitoring-arm64
 
-ADMIN_USER=admin \
-ADMIN_PASSWORD=admin \
-SLACK_URL=https://hooks.slack.com/services/TOKEN \
-SLACK_CHANNEL=devops-alerts \
-SLACK_USER=alertmanager \
 docker stack deploy -c docker-compose.yml mon
 ```
 
-Prerequisites:
-
-* Docker CE 17.09.0-ce or Docker EE 17.06.2-ee-3
-* Swarm cluster with one manager and a worker node
-* Docker engine experimental enabled and metrics address set to `0.0.0.0:9323`
 
 Services:
 
@@ -36,25 +21,7 @@ Services:
 * grafana (visualize metrics) `http://<swarm-ip>:3000`
 * node-exporter (host metrics collector)
 * cadvisor (containers metrics collector)
-* dockerd-exporter (Docker daemon metrics collector, requires Docker experimental metrics-addr to be enabled)
-* alertmanager (alerts dispatcher) `http://<swarm-ip>:9093`
-* unsee (alert manager dashboard) `http://<swarm-ip>:9094`
-* caddy (reverse proxy and basic auth provider for prometheus, alertmanager and unsee)
 
-
-## Alternative install with Traefik and HTTPS
-
-If you have a Docker Swarm cluster with a global Traefik set up as described in [DockerSwarm.rocks](https://dockerswarm.rocks), you can deploy Swarmprom integrated with that global Traefik proxy.
-
-This way, each Swarmprom service will have its own domain, and each of them will be served using HTTPS, with certificates generated (and renewed) automatically.
-
-### Requisites
-
-These instructions assume you already have Traefik set up following that guide above, in short:
-
-* With automatic HTTPS certificate generation.
-* A Docker Swarm network `traefik-public`.
-* Filtering to only serve containers with a label `traefik.constraint-label=traefik-public`.
 
 ### Instructions
 
@@ -64,79 +31,6 @@ These instructions assume you already have Traefik set up following that guide a
 $ git clone https://github.com/stefanprodan/swarmprom.git
 $ cd swarmprom
 ```
-
-* Set and export an `ADMIN_USER` environment variable:
-
-```bash
-export ADMIN_USER=admin
-```
-
-* Set and export an `ADMIN_PASSWORD` environment variable:
-
-
-```bash
-export ADMIN_PASSWORD=changethis
-```
-
-* Set and export a hashed version of the `ADMIN_PASSWORD` using `openssl`, it will be used by Traefik's HTTP Basic Auth for most of the services:
-
-```bash
-export HASHED_PASSWORD=$(openssl passwd -apr1 $ADMIN_PASSWORD)
-```
-
-* You can check the contents with:
-
-```bash
-echo $HASHED_PASSWORD
-```
-
-it will look like:
-
-```
-$apr1$89eqM5Ro$CxaFELthUKV21DpI3UTQO.
-```
-
-* Create and export an environment variable `DOMAIN`, e.g.:
-
-```bash
-export DOMAIN=example.com
-```
-
-and make sure that the following sub-domains point to your Docker Swarm cluster IPs:
-
-* `grafana.example.com`
-* `alertmanager.example.com`
-* `unsee.example.com`
-* `prometheus.example.com`
-
-(and replace `example.com` with your actual domain).
-
-**Note**: You can also use a subdomain, like `swarmprom.example.com`. Just make sure that the subdomains point to (at least one of) your cluster IPs. Or set up a wildcard subdomain (`*`).
-
-* If you are using Slack and want to integrate it, set the following environment variables:
-
-```bash
-export SLACK_URL=https://hooks.slack.com/services/TOKEN
-export SLACK_CHANNEL=devops-alerts
-export SLACK_USER=alertmanager
-```
-
-**Note**: by using `export` when declaring all the environment variables above, the next command will be able to use them.
-
-* Deploy the Traefik version of the stack:
-
-
-```bash
-docker stack deploy -c docker-compose.traefik.yml swarmprom
-```
-
-To test it, go to each URL:
-
-* `https://grafana.example.com`
-* `https://alertmanager.example.com`
-* `https://unsee.example.com`
-* `https://prometheus.example.com`
-
 
 ## Setup Grafana
 
@@ -319,43 +213,6 @@ you would write a query like this:
 sum(engine_daemon_health_checks_failed_total) * on(instance) group_left(node_id) swarm_node_info{node_id=~"$node_id"})
 ```
 
-For now the engine metrics are still experimental. If you want to use dockerd-exporter you have to enable
-the experimental feature and set the metrics address to `0.0.0.0:9323`.
-
-If you are running Docker with systemd create or edit
-/etc/systemd/system/docker.service.d/docker.conf file like so:
-
-```
-[Service]
-ExecStart=
-ExecStart=/usr/bin/dockerd \
-  --storage-driver=overlay2 \
-  --dns 8.8.4.4 --dns 8.8.8.8 \
-  --experimental=true \
-  --metrics-addr 0.0.0.0:9323
-```
-
-Apply the config changes with `systemctl daemon-reload && systemctl restart docker` and
-check if the docker_gwbridge ip address is 172.18.0.1:
-
-```bash
-ip -o addr show docker_gwbridge
-```
-
-Replace 172.18.0.1 with your docker_gwbridge address in the compose file:
-
-```yaml
-  dockerd-exporter:
-    image: stefanprodan/caddy
-    environment:
-      - DOCKER_GWBRIDGE_IP=172.18.0.1
-```
-
-Collecting Docker Swarm metrics with Prometheus is not a smooth process, and
-because of `group_left` queries tend to become more complex.
-In the future I hope Swarm DNS will contain the SRV record for hostname and Docker engine
-metrics will expose container metrics replacing cAdvisor all together.
-
 ## Configure Prometheus
 
 I've set the Prometheus retention period to 24h, you can change these values in the
@@ -363,7 +220,7 @@ compose file or using the env variable `PROMETHEUS_RETENTION`.
 
 ```yaml
   prometheus:
-    image: stefanprodan/swarmprom-prometheus
+    image: anwargh/prometheus:vlast
     command:
       - '-storage.tsdb.retention=24h'
     deploy:
@@ -390,9 +247,7 @@ pin the Prometheus service on a specific host with placement constraints.
           - node.labels.monitoring.role == prometheus
 ```
 
-## Configure alerting
 
-The Prometheus swarmprom comes with the following alert rules:
 
 ***Swarm Node CPU Usage***
 
