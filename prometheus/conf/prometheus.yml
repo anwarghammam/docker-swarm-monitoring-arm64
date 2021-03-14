@@ -7,7 +7,7 @@ global:
 
 rule_files:
   - "swarm_node.rules.yml"
-  - "swarm_task.rules.yml"
+
 
 alerting:
   alertmanagers:
@@ -16,6 +16,7 @@ alerting:
       - alertmanager:9093
 
 scrape_configs:
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
@@ -28,6 +29,9 @@ scrape_configs:
       port: 9323
 
   - job_name: 'cadvisor'
+
+    static_configs:
+      - targets: ['cadvisor:8080']
     dns_sd_configs:
     - names:
       - 'tasks.cadvisor'
@@ -35,10 +39,14 @@ scrape_configs:
       port: 8080
 
   - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
     dns_sd_configs:
     - names:
       - 'tasks.node-exporter'
       type: 'A'
       port: 9100
+
+
 
 
