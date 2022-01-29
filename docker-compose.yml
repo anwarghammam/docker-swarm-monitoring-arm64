@@ -57,7 +57,7 @@ services:
 
   prometheus:
     # if you'r using arm32 just replace anwargh/prometheus:arch64 with anwargh/prometheus:arch32
-    image: prom/prometheus
+    image: nourhj/promv7
     ports:
          -  "9090:9090"
     command:
