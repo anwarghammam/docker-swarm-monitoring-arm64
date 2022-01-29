@@ -13,7 +13,7 @@ configs:
 services:
  
   cadvisor:
-    image: carlosedp/rpi-cadvisor
+    image: raymondmm/cadvisor
     restart: unless-stopped
     ports:
       - 8080:8080
@@ -57,7 +57,7 @@ services:
 
   prometheus:
     # if you'r using arm32 just replace anwargh/prometheus:arch64 with anwargh/prometheus:arch32
-    image: anwargh/prometheus:arch64
+    image: ubuntu/prometheus
     ports:
          -  "9090:9090"
     command:
