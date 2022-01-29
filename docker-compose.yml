@@ -57,7 +57,7 @@ services:
 
   prometheus:
     # if you'r using arm32 just replace anwargh/prometheus:arch64 with anwargh/prometheus:arch32
-    image: ubuntu/prometheus
+    image: prom/prometheus
     ports:
          -  "9090:9090"
     command:
