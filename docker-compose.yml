@@ -56,8 +56,8 @@ services:
           memory: 64M
 
   prometheus:
-    # if you'r using arm32 just replace anwargh/prometheus:arch64 with anwargh/prometheus:arch32
-    image:  prom/prometheus
+    # if you'r using arm64 just replace anwargh/prometheus:arch32 with anwargh/prometheus:arch64
+    image:  anwargh/prometheus:arch32
     ports:
          -  "9090:9090"
     command:
